@@ -773,7 +773,8 @@
   .author-text b{display:block; font-size:calc(16px * var(--ts)); margin-bottom:4px;}
   .tractor-card{text-align:center; margin:4px 0 26px; position:relative; z-index:1;}
   .tractor-img{width:min(82%, 360px); height:auto;}
-  .tractor-cap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:calc(13px * var(--ts)); color:var(--ink-soft); margin-top:2px;}
+  .brain-between .tractor-img{width:min(70%, 300px); max-height:420px; object-fit:cover; border-radius:26px;}
+.tractor-cap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:calc(13px * var(--ts)); color:var(--ink-soft); margin-top:2px;}
 
   /* ---------- v6 ---------- */
   .wb-line{display:flex; align-items:flex-start; gap:10px;}
@@ -933,6 +934,16 @@
 })();
 </script>
 <style>
+.week-strip{display:flex; justify-content:space-between; gap:4px; margin-bottom:12px; cursor:pointer}
+.ws-d{flex:1; text-align:center}
+.ws-d small{display:block; font-size:calc(12px * var(--ts)); color:#8a86b0; font-weight:700; text-transform:uppercase; margin-bottom:3px}
+.ws-d span{display:flex; align-items:center; justify-content:center; width:100%; max-width:44px; aspect-ratio:1; margin:0 auto; border-radius:50%; background:#ece8ff; font-size:calc(18px * var(--ts)); border:2px solid transparent}
+.ws-d.on span{background:#ffe6b8}
+.ws-d.miss span{background:#f3e3e3}
+.ws-d.now span{border-color:#6b5bd6}
+.cal-ph{width:68px; height:68px; border-radius:50%; object-fit:cover; object-position:46% 33%; border:3px solid #fff; flex:none}
+.cal-brand{font-size:13px; font-weight:700; opacity:.95}
+.cal-top .cal-cat{margin-left:auto; font-size:44px}
 .daily-cal-btn{margin-top:10px; width:100%}
 #calOverlay{position:fixed; inset:0; z-index:100; background:rgba(30,24,70,.55); display:flex; align-items:center; justify-content:center; padding:12px; overflow:auto}
 .cal-card{background:linear-gradient(160deg,#6b5bd6,#b8a8f5); border-radius:28px; padding:18px; width:100%; max-width:430px; color:#3b3270; max-height:100%; overflow:auto}
@@ -954,8 +965,9 @@
 .cal-t th{color:#6b5bd6; padding:8px 4px; font-size:12px}
 .cal-t td{padding:7px 4px}
 .cal-t td:first-child{font-weight:700; text-align:left; padding-left:12px}
-.cal-btns{display:flex; gap:10px; margin-top:14px}
-.cal-btns .btn{flex:1}
+.cal-btns{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px}
+.cal-btns .btn{flex:1 1 40%}
+#calClose{flex-basis:100%}
 </style>
 <script>
 /* ============ DATA ============ */
@@ -1524,6 +1536,8 @@ function renderPath(){
     block.appendChild(caption);
 
     container.appendChild(block);
+    if(u === 1 && numUnits > 3) container.appendChild(makeBrainCard());   // the author with the brain, between levels 2 and 3
+    if(u === 5 && numUnits > 6) container.appendChild(makeUmbrellaCard());   // the author with the umbrella and the tree
     if(u === 3 && numUnits > 4) container.appendChild(makeTractorCard());   // the author on a tractor, between levels 4 and 5
 
     if(firstIncompleteUnitBlock === null){
@@ -3272,6 +3286,15 @@ function renderDailyPanel(){
   card.appendChild(btn);
   const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn daily-cal-btn'; cb.textContent = S2('📅 Календар і статистика', '📅 Календарь и статистика');
   cb.addEventListener('click', openCalendar); card.appendChild(cb);
+  const strip = document.createElement('div'); strip.className = 'week-strip'; strip.title = S2('Календар і статистика', 'Календарь и статистика');
+  { const now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)), wn = weekdayNames(), t0 = todayStr();
+    for(let i = 0; i < 7; i++){
+      const dt = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i), k = todayStr(dt), st = dayState(k);
+      const c = document.createElement('div'); c.className = 'ws-d ' + st + (k === t0 ? ' now' : '');
+      c.innerHTML = '<small>' + wn[i] + '</small><span>' + (st === 'on' ? '🔥' : '') + '</span>'; strip.appendChild(c);
+    } }
+  strip.addEventListener('click', openCalendar);
+  card.insertBefore(strip, card.firstChild);
   const br = document.createElement('div'); br.className = 'brain-card';
   br.innerHTML = '<img src="img/adrian-brain.webp" alt="" loading="lazy" decoding="async"><div>' + T('Повторення — найкращий тренажер для мозку 🧠') + '</div>';
   br.querySelector('img').addEventListener('error', ()=>{ br.remove(); });
@@ -3314,7 +3337,7 @@ function monthCells(y, m){           // Monday-first grid; null = padding
 }
 function dayState(k){
   const h = histOf(), today = todayStr(), keys = Object.keys(h).sort();
-  if(h[k]) return 'on';
+  if(h[k] || k === progress.daily.lastDay) return 'on';
   if(k === today) return 'today';
   if(keys.length && k > keys[0] && k < today) return 'miss';
   return '';
@@ -3322,6 +3345,7 @@ function dayState(k){
 function monthTitle(y, m){ const t = new Intl.DateTimeFormat(LANG === 'ru' ? 'ru' : 'uk', { month: 'long', year: 'numeric' }).format(new Date(y, m, 1)); return t.charAt(0).toUpperCase() + t.slice(1); }
 function weekdayNames(){ const f = new Intl.DateTimeFormat(LANG === 'ru' ? 'ru' : 'uk', { weekday: 'short' }); return [1, 2, 3, 4, 5, 6, 7].map(d => f.format(new Date(2024, 0, d)).slice(0, 2)); }
 let calView = null;
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ const o = document.getElementById('calOverlay'); if(o){ o.remove(); e.stopPropagation(); } } }, true);
 function openCalendar(){
   const now = new Date(); if(!calView) calView = { y: now.getFullYear(), m: now.getMonth() };
   let ov = document.getElementById('calOverlay');
@@ -3333,24 +3357,34 @@ function openCalendar(){
     return '<div class="cal-c ' + s + (k === today ? ' now' : '') + '"><span>' + (s === 'on' ? '🔥' : (s === 'miss' ? '·' : '')) + '</span><b>' + n + '</b></div>';
   }).join('');
   const row = (name, v) => '<tr><td>' + name + '</td><td>' + v.l + '</td><td>' + v.r + '</td><td>' + v.days + '</td></tr>';
-  ov.innerHTML = '<div class="cal-card"><div class="cal-top"><span class="cal-cat">🐱</span><div><div class="cal-streak">' + st.streak + ' ' + daysWord(st.streak) + '</div><div class="cal-sub">' + S2('Серія занять · пропущено: ', 'Серия занятий · пропущено: ') + st.missed + '</div></div></div>' +
+  ov.innerHTML = '<div class="cal-card"><div class="cal-top"><img class="cal-ph" src="img/adrian-portrait.webp" alt="" onerror="this.remove()"><div><div class="cal-brand">Le Chat Français · ' + S2('Адріан Марголін', 'Адриан Марголин') + '</div><div class="cal-streak">' + st.streak + ' ' + daysWord(st.streak) + '</div><div class="cal-sub">' + S2('Серія занять · пропущено: ', 'Серия занятий · пропущено: ') + st.missed + '</div></div><span class="cal-cat">🐱</span></div>' +
     '<div class="cal-nav"><button data-d="-1">‹</button><div>' + monthTitle(calView.y, calView.m) + '</div><button data-d="1">›</button></div>' +
     '<div class="cal-grid">' + wd.map(x => '<div class="cal-w">' + x + '</div>').join('') + cells + '</div>' +
     '<table class="cal-t"><tr><th></th><th>' + S2('Уроки', 'Уроки') + '</th><th>' + S2('Повтор.', 'Повтор.') + '</th><th>' + S2('Днів', 'Дней') + '</th></tr>' +
     row(S2('Тиждень', 'Неделя'), st.wk) + row(S2('Місяць', 'Месяц'), st.mo) + row(S2('Увесь час', 'Всё время'), st.all) + '</table>' +
-    '<div class="cal-btns"><button class="btn btn-primary" id="calShare">📤 ' + S2('Поділитися', 'Поделиться') + '</button><button class="btn" id="calClose">' + S2('Закрити', 'Закрыть') + '</button></div></div>';
+    '<div class="cal-btns"><button class="btn btn-primary" id="calShare">📤 ' + S2('Поділитися', 'Поделиться') + '</button><button class="btn" id="calTg">✈️ Telegram</button><button class="btn" id="calClose">' + S2('Закрити', 'Закрыть') + '</button></div></div>';
   ov.querySelectorAll('.cal-nav button').forEach(b => b.addEventListener('click', () => { calView.m += +b.dataset.d; if(calView.m < 0){ calView.m = 11; calView.y--; } if(calView.m > 11){ calView.m = 0; calView.y++; } openCalendar(); }));
   ov.querySelector('#calClose').addEventListener('click', () => ov.remove());
   ov.querySelector('#calShare').addEventListener('click', shareCalendar);
+  ov.querySelector('#calTg').addEventListener('click', shareTelegram);
 }
-function drawCalendarCanvas(){
-  const W = 1080, H = 1500, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+function loadPortrait(){ return new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = 'img/adrian-portrait.webp'; }); }
+function drawCalendarCanvas(photo){
+  const W = 1080, H = 1640, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
   const st = statsFor(), today = todayStr(), FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
   const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#6b5bd6'); g.addColorStop(1, '#b8a8f5'); x.fillStyle = g; x.fillRect(0, 0, W, H);
   x.fillStyle = 'rgba(255,255,255,.10)'; for(let i = 0; i < 14; i++){ x.beginPath(); x.arc((i * 233) % W, (i * 397) % H, 40 + (i % 4) * 20, 0, 7); x.fill(); }
   const rr = (X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
-  x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '700 44px ' + FONT; x.fillText('Le Chat Français', W / 2, 90);
-  x.font = '200px serif'; x.fillText('🐱', W / 2 - 330, 300);
+  // header: portrait + name of the app + the author's name
+  const pcx = 190, pcy = 175, pr = 115;
+  x.fillStyle = '#fff'; x.beginPath(); x.arc(pcx, pcy, pr + 10, 0, 7); x.fill();
+  if(photo){ x.save(); x.beginPath(); x.arc(pcx, pcy, pr, 0, 7); x.clip(); const k = photo.width / 1536, sw = 800 * k; x.drawImage(photo, 280 * k, 360 * k, sw, sw, pcx - pr, pcy - pr, pr * 2, pr * 2); x.restore(); }
+  else { x.fillStyle = '#e8e2ff'; x.beginPath(); x.arc(pcx, pcy, pr, 0, 7); x.fill(); x.font = '120px serif'; x.textAlign = 'center'; x.fillStyle = '#000'; x.fillText('🐱', pcx, pcy + 40); }
+  x.textAlign = 'left'; x.fillStyle = '#fff'; x.font = '800 68px ' + FONT; x.fillText('Le Chat Français', 340, 170);
+  x.font = '600 46px ' + FONT; x.fillText(S2('Адріан Марголін', 'Адриан Марголин'), 340, 235);
+  x.font = '500 34px ' + FONT; x.fillStyle = 'rgba(255,255,255,.85)'; x.fillText('Adrian Margolin 🐾', 340, 285); x.fillStyle = '#fff';
+  x.save(); x.translate(0, 150); x.textAlign = 'center'; x.fillStyle = '#fff';
+  x.font = '170px serif'; x.fillText('🐱', W / 2 - 340, 330);
   x.font = '800 190px ' + FONT; x.fillText(String(st.streak), W / 2 + 40, 285);
   x.font = '600 46px ' + FONT; x.fillText(daysWord(st.streak) + ' 🔥', W / 2 + 40, 350);
   x.font = '500 34px ' + FONT; x.fillText(S2('пропущено днів: ', 'пропущено дней: ') + st.missed, W / 2, 410);
@@ -3372,11 +3406,33 @@ function drawCalendarCanvas(){
     x.fillStyle = '#3b3270'; x.font = '600 30px ' + FONT;
     x.fillText(S2('Уроки: ', 'Уроки: ') + rw[1].l, X + bw / 2, by + 118); x.fillText(S2('Повтор.: ', 'Повтор.: ') + rw[1].r, X + bw / 2, by + 168); x.fillText(S2('Днів: ', 'Дней: ') + rw[1].days, X + bw / 2, by + 218);
   });
-  x.fillStyle = 'rgba(255,255,255,.9)'; x.font = '500 30px ' + FONT; x.fillText(S2('Вчу французьку з Le Chat Français 🐾', 'Учу французский с Le Chat Français 🐾'), W / 2, 1460);
+  x.restore();
+  x.textAlign = 'center'; x.fillStyle = 'rgba(255,255,255,.9)'; x.font = '500 30px ' + FONT; x.fillText(S2('Вчу французьку з Le Chat Français 🐾', 'Учу французский с Le Chat Français 🐾'), W / 2, 1600);
   return c;
 }
+async function buildCalCanvas(){
+  const photo = await loadPortrait();
+  let c = drawCalendarCanvas(photo);
+  try{ c.getContext('2d').getImageData(0, 0, 1, 1); }catch(e){ c = drawCalendarCanvas(null); }   // a photo opened from file:// taints the canvas: draw without it
+  return c;
+}
+async function shareTelegram(){
+  const c = await buildCalCanvas(), blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  if(!blob){ showToast(S2('Не вдалося створити картинку.', 'Не удалось создать картинку.')); return; }
+  const file = new File([blob], 'le-chat-francais.png', { type: 'image/png' });
+  const text = S2('Моя серія у Le Chat Français 🐱🔥', 'Моя серия в Le Chat Français 🐱🔥');
+  try{
+    if(/Android|iPhone|iPad/i.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] })){ await navigator.share({ files: [file], text }); return; }
+  }catch(e){ if(e && e.name === 'AbortError') return; }
+  let copied = false;
+  try{ await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); copied = true; }catch(e){}
+  if(!copied){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'le-chat-francais.png'; document.body.appendChild(a); a.click(); a.remove(); }
+  const link = /^https?:/.test(location.href) ? location.href.split('#')[0] : 'https://t.me';
+  window.open('https://t.me/share/url?url=' + encodeURIComponent(link) + '&text=' + encodeURIComponent(text), '_blank');
+  showToast(copied ? S2('Картинку скопійовано — встав її в чат Telegram (Ctrl+V).', 'Картинка скопирована — вставь её в чат Telegram (Ctrl+V).') : S2('Картинку збережено — додай її в чат Telegram.', 'Картинка сохранена — добавь её в чат Telegram.'));
+}
 async function shareCalendar(){
-  const c = drawCalendarCanvas();
+  const c = await buildCalCanvas();
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   if(!blob){ showToast(S2('Не вдалося створити картинку.', 'Не удалось создать картинку.')); return; }
   const file = new File([blob], 'le-chat-francais.png', { type: 'image/png' });
@@ -3453,6 +3509,24 @@ function renderAuthorCard(){
   tx2.textContent = T('Але це допоміжний додаток і не замінює підручника Simplissime та письмових вправ. А Ви що думали?)) Гейміфікація — не прокрастинація!');
   tx.appendChild(tx2);
   box.appendChild(img); box.appendChild(tx);
+}
+function makeUmbrellaCard(){
+  const card = document.createElement('div'); card.className = 'tractor-card brain-between';
+  const img = document.createElement('img'); img.className = 'tractor-img'; img.src = 'img/adrian-umbrella.webp'; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+  img.addEventListener('error', ()=>{ card.remove(); });
+  const cap = document.createElement('div'); cap.className = 'tractor-cap';
+  cap.textContent = S2('Адріан під парасолею біля дерева — навіть у дощ французька не чекає! ☔🌳', 'Адриан под зонтом возле дерева — даже в дождь французский не ждёт! ☔🌳');
+  card.appendChild(img); card.appendChild(cap);
+  return card;
+}
+function makeBrainCard(){
+  const card = document.createElement('div'); card.className = 'tractor-card brain-between';
+  const img = document.createElement('img'); img.className = 'tractor-img'; img.src = 'img/adrian-brain.webp'; img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+  img.addEventListener('error', ()=>{ card.remove(); });
+  const cap = document.createElement('div'); cap.className = 'tractor-cap';
+  cap.textContent = S2('Адріан дружить із мозком — повторюй слова, і вони залишаться надовго! 🧠', 'Адриан дружит с мозгом — повторяй слова, и они останутся надолго! 🧠');
+  card.appendChild(img); card.appendChild(cap);
+  return card;
 }
 function makeTractorCard(){
   const card = document.createElement('div');
